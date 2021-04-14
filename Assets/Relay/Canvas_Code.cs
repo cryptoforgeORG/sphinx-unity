@@ -51,7 +51,7 @@ namespace PlayEntertainment.Sphinx
         void ProcessCode()
         {
             string code = this.inputField_Code.text;
-            Manager_Sphinx.Instance.ProcessCode(code, delegate (bool askForPin, Action<string> callback)
+            Sphinx.Instance.ProcessCode(code, delegate (bool askForPin, Action<string> callback)
             {
                 if (askForPin)
                 {

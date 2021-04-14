@@ -14,9 +14,9 @@ using UnityEngine;
 
 namespace PlayEntertainment.Sphinx
 {
-    public class Manager_Sphinx : MonoBehaviour
+    public class Sphinx : MonoBehaviour
     {
-        public static Manager_Sphinx Instance = null;
+        public static Sphinx Instance = null;
 
         public string code_Invite = string.Empty;
         public string code_Recovery = string.Empty;

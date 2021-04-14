@@ -4,6 +4,7 @@
 //  Copyright (c) Play Entertainment LLC, California. All rights reserved.
 //
 
+using QFSW.QC;
 
 using System;
 
@@ -19,6 +20,8 @@ namespace PlayEntertainment.Sphinx
         private string pin = string.Empty;
 
         public Text text_Pin;
+
+        public QuantumConsole quantum;
 
         private void FlashPin()
         {
@@ -82,6 +85,7 @@ namespace PlayEntertainment.Sphinx
         public void Click_10()
         {
             callback(this.pin);
+            this.quantum.gameObject.SetActive(true);
             this.FlashPin();
         }
 
