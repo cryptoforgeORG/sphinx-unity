@@ -1,5 +1,7 @@
-# Sphinx + RNCryptor Unity Implementation
+# Sphinx Unity Utility/Lightning Network Framework
 
-This is how you set up a CSharp (C#) client for interfacing with your Sphinx relay and Sphinx.Chat.
+Use this tool to interface with your Sphinx relay and Sphinx.Chat.
 
-[Site](http://pay2play.io)
+Please feel free to contribute.
+
+[Support](partner@playentertainment.company)

@@ -1,8 +1,7 @@
 ﻿//
 //  http://playentertainment.company
 //  
-//  Copyright (c) Play Entertainment LLC, California. All rights reserved.
-//
+
 
 using System;
 
@@ -46,6 +45,18 @@ namespace PlayEntertainment.Sphinx
             {
                 Debug.Log("recovery_code not set");
             }
+
+
+            if (PlayerPrefs.HasKey("restore_string"))
+            {
+                Sphinx.Instance.restoreString = PlayerPrefs.GetString("restore_string");
+                Sphinx.Instance.Launch();
+                this.gameObject.SetActive(false);
+            }
+            else
+            {
+                Debug.Log("recovery_code not set");
+            }
         }
 
         void ProcessCode()
@@ -57,6 +68,7 @@ namespace PlayEntertainment.Sphinx
                 {
                     this.canvas_Pin.gameObject.SetActive(true);
                     this.canvas_Pin.callback = callback;
+                    this.gameObject.SetActive(false);
                 }
             });
         }

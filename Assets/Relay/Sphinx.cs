@@ -1,8 +1,8 @@
 //
 //  http://playentertainment.company
 //  
-//  Copyright (c) Play Entertainment LLC. All rights reserved.
-//
+
+using QFSW.QC;
 
 using RNCryptor;
 
@@ -14,14 +14,34 @@ using UnityEngine;
 
 namespace PlayEntertainment.Sphinx
 {
+    enum STATE
+    {
+        NEVER,
+        ONCE
+    }
+
+    [CommandPrefix("sphinx")]
     public class Sphinx : MonoBehaviour
     {
+        public string restoreString = string.Empty;
+
         public static Sphinx Instance = null;
+
+        public QuantumConsole quantum;
+
+        STATE state = STATE.NEVER;
 
         public string code_Invite = string.Empty;
         public string code_Recovery = string.Empty;
 
-        public string pin = "555555";
+        public Balance balance;
+
+        public List<Contact> contacts;
+        public List<Chat> chats;
+        public List<Subscription> subscriptions;
+        public List<Msg> messages;
+
+        public long lastFetched = 0;
 
         public API api;
 
@@ -37,10 +57,6 @@ namespace PlayEntertainment.Sphinx
             }
 
             DontDestroyOnLoad(this.gameObject);
-        }
-
-        void Start()
-        {
         }
 
         public void ProcessCode(string code, Action<bool, Action<string>> callback)
@@ -71,8 +87,6 @@ namespace PlayEntertainment.Sphinx
 
             string encrypted = words[1];
 
-            Debug.Log(encrypted);
-
             this.DecryptWithPin(encrypted, pin);
         }
 
@@ -84,36 +98,41 @@ namespace PlayEntertainment.Sphinx
 
             byte[] decryptedBytes = decryptor.Decrypt(encryptedBytes, pin);
 
-            string decryptedString = Encoding.UTF8.GetString(decryptedBytes);
+            this.restoreString = Encoding.UTF8.GetString(decryptedBytes);
 
-            Debug.Log("decryptedString " + decryptedString);
-
-            this.Restore(decryptedString);
-
-            Action<string, object, string, Action<object>> request = this.api.AddMethod("GET", this.api.url);
-            request(string.Format("/balance"), null, null, delegate (object result)
-            {
-                Dictionary<string, object> data = (Dictionary<string, object>)result;
-
-                bool success = (bool)data["success"];
-
-                if (success)
-                {
-                    Dictionary<string, object> response = (Dictionary<string, object>)data["response"];
-
-                    long balance_Reserve = (long)response["reserve"];
-                    long balance_Full = (long)response["full_balance"];
-                    long balance_Pending = (long)response["pending_open_balance"];
-                    long balance_Available = (long)response["balance"];
-
-                    Debug.Log(balance_Available);
-                }
-            });
+            this.Launch();
         }
-        public void Restore(string restoreString)
+
+        public void Launch()
+        {
+            this.Restore();
+            this.GetBalance();
+        }
+
+        public string GetPrivateKey()
         {
             string[] separatingStrings = { "::" };
-            string[] words = restoreString.Split(separatingStrings, System.StringSplitOptions.RemoveEmptyEntries);
+            string[] words = this.restoreString.Split(separatingStrings, System.StringSplitOptions.RemoveEmptyEntries);
+
+            string key = words[0];
+
+            return key;
+        }
+
+        public string GetPublicKey()
+        {
+            string[] separatingStrings = { "::" };
+            string[] words = this.restoreString.Split(separatingStrings, System.StringSplitOptions.RemoveEmptyEntries);
+
+            string key = words[1];
+
+            return key;
+        }
+
+        public void Restore()
+        {
+            string[] separatingStrings = { "::" };
+            string[] words = this.restoreString.Split(separatingStrings, System.StringSplitOptions.RemoveEmptyEntries);
 
             string key = words[0];
             string ip = words[2];
@@ -206,6 +225,148 @@ namespace PlayEntertainment.Sphinx
             }
 
             return randomString;
+        }
+        #endregion
+
+        #region - Api - 
+
+        [Command(".balance")]
+        public void GetBalance()
+        {
+            Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
+            request(string.Format("/balance"), null, null, delegate (string text)
+            {
+                Json_Balance json = JsonUtility.FromJson<Json_Balance>(text);
+
+                if (json.success)
+                {
+                    this.balance = json.response;
+
+                    if (this.state == STATE.NEVER)
+                    {
+                        Sphinx.Instance.quantum.gameObject.SetActive(true);
+                        PlayerPrefs.SetString("restore_string", this.restoreString);
+                        this.state = STATE.ONCE;
+                    }
+
+                    Debug.Log(this.balance.balance);
+                }
+            });
+        }
+
+        [Command(".contacts")]
+        public void GetContacts()
+        {
+            Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
+            request(string.Format("/contacts"), null, null, delegate (string text)
+            {
+                Json_Contacts json = JsonUtility.FromJson<Json_Contacts>(text);
+
+                if (json.success)
+                {
+                    this.contacts = json.response.contacts;
+                    this.chats = json.response.chats;
+                    this.subscriptions = json.response.subscriptions;
+
+                    foreach (Contact contact in this.contacts)
+                    {
+                        Debug.Log(contact.alias);
+                    }
+                }
+            });
+        }
+
+        [Command(".chats")]
+        public void GetChats()
+        {
+            foreach (Chat chat in this.chats)
+            {
+                Debug.Log(chat.name);
+            }
+        }
+
+        // Messages
+        [Command(".messages")]
+        public void GetMessages()
+        {
+            this.RestoreMessages();
+        }
+
+        void RestoreMessages()
+        {
+            bool done = false;
+            int offset = 0;
+            int limit = 20;
+
+            DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            string param_Date = dateTime.ToString("yyyy-MM-dd\\%20HH:mm:ss");
+
+            Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
+            request(string.Format("/msgs?limit={0}&offset={1}&date={2}", limit, offset, param_Date), null, null, delegate (string text)
+            {
+                done = true;
+
+                Json_Messages json = JsonUtility.FromJson<Json_Messages>(text);
+
+                if (json.success)
+                {
+                    this.messages = json.response.new_messages;
+
+                    if (this.messages.Count <= 0) return;
+
+                    while (!done)
+                    {
+
+                    }
+
+                    DateTime now = DateTime.Now;
+                    this.lastFetched = ((DateTimeOffset)now).ToUnixTimeSeconds();
+
+                    this.messages = Helpers.decodeMessages(this.messages);
+
+                    foreach (Msg message in this.messages)
+                    {
+                        if (message.message_content != null)
+                        {
+                            Debug.Log(message.message_content);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Messages
+        [Command(".crypto")]
+        public void Crypto()
+        {
+            string publicKey = @"-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCzVBO/HUhgU4cIRS2UE255r2uG
+EaVuPAxrANab5z7rv/hUm1t1TW9G6qaLvXraUS2c6m4PW+VVY8j/fViIy9XLhd2I
+dYsbuTNyV6gQVnA4tdMdnJdrvfzaXiIoPzP3u9Ll8LEQSW2iiludxwBlVz/VdCiA
+EYBMuYmrmSHsan5ObQIDAQAB
+-----END PUBLIC KEY-----";
+
+            string privateKey = @"-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQCzVBO/HUhgU4cIRS2UE255r2uGEaVuPAxrANab5z7rv/hUm1t1
+TW9G6qaLvXraUS2c6m4PW+VVY8j/fViIy9XLhd2IdYsbuTNyV6gQVnA4tdMdnJdr
+vfzaXiIoPzP3u9Ll8LEQSW2iiludxwBlVz/VdCiAEYBMuYmrmSHsan5ObQIDAQAB
+AoGBAIHSy1zfQSdjMO2ez0lU6/SyN0BfBAmS9VZ9y+AgACBB4PC3a/W28mk/tQST
+Tx5ACKqB2N3LpHI2BCxaPT8DeilfjaUibpOqXJ918+oXmOEpEBpEz2FzkzZWeUOo
+8bkDiuEE1RyzQEQExxCbiLQFCpX0NNIpccrTYJ3wRZfroojNAkEA4Pd9xxscmxQM
+s4aQgE+/paQWR//B2JQjhsxvYfLhrMUKgWMWpfm5EfhG3AlIE/N7iZADPLZ+2JMG
+2ljnE3VdzwJBAMwQ6DJpueg2Yj5+ufTVhFBIkJZXWGIZv5FWmzaycfJOafg/ToRB
+QWjU7Dr7buxQ4jgFI6eZcN8uM5pcer/ouwMCQDRCSb2O1r5PkgPCJp8n52UbEPH4
+v5cIEpiltNoUCciQnTghRImZ0RwTiKJkpZG85d22zomz+xNkVBs0u7kRcpECQAfH
+NTKGuSFSwVfkeK4OXWa5/Vjdp27F0Hl3tZ7WGmXD+2IM968u1ZFrXD27S7USOC0u
+dPd0b8rx9eGSWNNryYUCQQCWbiNhKEDQ1+yauWhZwamsc2Zl/Gde0eQYrWlmoZRE
+r4w8Xlt8XVBTNBf5ljALeVtXOs0LNuWqnmy1v7wMPvnN
+-----END RSA PRIVATE KEY-----";
+
+            string text = RSAHelper.Encrypt("Hello Rocky", publicKey);
+
+            var data = RSAHelper.Decrypt(text.Trim(), privateKey);
+            Debug.Log(data);
+
         }
         #endregion
     }

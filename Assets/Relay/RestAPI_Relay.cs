@@ -1,11 +1,7 @@
 ﻿//
-//  Masters Of Conquest
-//
-//  http://www.mastersofconquest.com
 //  http://playentertainment.company
 //  
-//  Copyright (c) Play Entertainment LLC, California. All rights reserved.
-//
+
 
 using MiniJSON;
 using System;
@@ -37,9 +33,9 @@ namespace PlayEntertainment.Sphinx
             this.executor = executor;
         }
 
-        public Action<string, object, string, Action<object>> AddMethod(string method, string rootUrl)
+        public Action<string, object, string, Action<string>> AddMethod(string method, string rootUrl)
         {
-            return delegate (string url, object data, string encoding, Action<object> callback)
+            return delegate (string url, object data, string encoding, Action<string> callback)
             {
                 // data null check
                 bool skip = this.isPublic(url);
@@ -126,7 +122,7 @@ namespace PlayEntertainment.Sphinx
             return string.Empty;
         }
 
-        IEnumerator GetRequest(string uri, Dictionary<string, string> headers, Action<object> callback)
+        IEnumerator GetRequest(string uri, Dictionary<string, string> headers, Action<string> callback)
         {
             using (UnityWebRequest webRequest = UnityWebRequest.Get(uri))
             {
@@ -147,14 +143,13 @@ namespace PlayEntertainment.Sphinx
                         Debug.LogError("HTTP Error: " + webRequest.error);
                         break;
                     case UnityWebRequest.Result.Success:
-                        Debug.Log("Received: " + webRequest.downloadHandler.text);
-                        callback(Json.Deserialize(webRequest.downloadHandler.text));
+                        callback(webRequest.downloadHandler.text);
                         break;
                 }
             }
         }
 
-        IEnumerator PostRequest(string uri, Dictionary<string, string> headers, Dictionary<string, object> opts, Action<object> callback)
+        IEnumerator PostRequest(string uri, Dictionary<string, string> headers, Dictionary<string, object> opts, Action<string> callback)
         {
             string bodyJsonString = opts["body"].ToString();
 
