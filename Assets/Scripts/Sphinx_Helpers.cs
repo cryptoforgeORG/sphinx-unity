@@ -22,6 +22,13 @@ namespace PlayEntertainment.Sphinx
         }
     }
 
+    enum CHAT_TYPE
+    {
+        conversation = 0,
+        group = 1,
+        tribe = 2
+    }
+
     enum MESSAGE_TYPE
     {
         message = 0,
@@ -132,6 +139,68 @@ namespace PlayEntertainment.Sphinx
 
             return message;
         }
+
+        static public string encryptPublic(string text, string publicKey)
+        {
+            // Crypto.Encrypt(text, publicKey);
+            return null;
+        }
+        static public Dictionary<object, object> makeRemoteTextMap(string text, long contactId = 0, long chatId = 0, bool includeSelf = false)
+        {
+            Dictionary<object, object> idToKeyMap = new Dictionary<object, object>();
+            Dictionary<object, object> remoteTextMap = new Dictionary<object, object>();
+
+            if (chatId != 0)
+            {
+                Chat chat = Sphinx.Instance.chats.FirstOrDefault(c => c.id == chatId);
+
+                if (chat != null)
+                {
+                    // Tribe
+                    if (chat.type == (int)CHAT_TYPE.tribe && chat.group_key != null)
+                    {
+                        idToKeyMap.Add("chat", chat.group_key);
+
+                        Contact me = Sphinx.Instance.contacts.FirstOrDefault(c => c.id == 1);
+
+                        if (me != null)
+                        {
+                            idToKeyMap[1] = me.contact_key;
+                        }
+                    }
+                    // Non-Tribe
+                    else
+                    {
+                        List<Contact> contacts = new List<Contact>();
+
+                        if (includeSelf)
+                        {
+                            contacts = Sphinx.Instance.contacts.Where(c => Array.IndexOf(chat.contact_ids, c.id) > -1).ToList<Contact>();
+                        }
+                        else
+                        {
+                            contacts = Sphinx.Instance.contacts.Where(c => Array.IndexOf(chat.contact_ids, c.id) > -1 && c.id != 1).ToList<Contact>();
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Contact contact = Sphinx.Instance.contacts.FirstOrDefault(c => c.id == contactId);
+
+                if (contact != null)
+                {
+                    idToKeyMap[contactId] = contact.contact_key;
+                }
+            }
+
+            foreach (KeyValuePair<object, object> pair in idToKeyMap)
+            {
+                string encrypted = Crypto.Encrypt(text, (string)pair.Value);
+                remoteTextMap.Add(pair.Key, encrypted);
+            }
+            return remoteTextMap;
+        }
     }
 
     //  const constants = {
@@ -198,10 +267,5 @@ namespace PlayEntertainment.Sphinx
     //     incorrect_payment_details: 'Incorrect Payment Details',
     //     unknown: 'Unknown'
     //   },
-    //   chat_types: {
-    //     conversation: 0,
-    //     group: 1,
-    //     tribe: 2
-    //   }
     // }
 }

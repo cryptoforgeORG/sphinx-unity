@@ -20,8 +20,6 @@ namespace PlayEntertainment.Sphinx
 
         public Text text_Pin;
 
-
-
         private void FlashPin()
         {
             this.text_Pin.text = pin;

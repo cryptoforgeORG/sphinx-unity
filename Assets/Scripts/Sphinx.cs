@@ -8,6 +8,7 @@ using RNCryptor;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 using UnityEngine;
@@ -107,6 +108,7 @@ namespace PlayEntertainment.Sphinx
         {
             this.Restore();
             this.GetBalance();
+            this.GetContacts();
         }
 
         public string GetPrivateKey()
@@ -229,7 +231,6 @@ namespace PlayEntertainment.Sphinx
         #endregion
 
         #region - Api - 
-
         [Command(".balance")]
         public void GetBalance()
         {
@@ -268,10 +269,10 @@ namespace PlayEntertainment.Sphinx
                     this.chats = json.response.chats;
                     this.subscriptions = json.response.subscriptions;
 
-                    foreach (Contact contact in this.contacts)
-                    {
-                        Debug.Log(contact.alias);
-                    }
+                    // foreach (Contact contact in this.contacts)
+                    // {
+                    //     Debug.Log(contact.alias);
+                    // }
                 }
             });
         }
@@ -335,38 +336,91 @@ namespace PlayEntertainment.Sphinx
             });
         }
 
-        // Messages
-        [Command(".crypto")]
-        public void Crypto()
+        [Command(".message")]
+        public void SendMessage(string text, int chatIndex = -1)
         {
-            string publicKey = @"-----BEGIN PUBLIC KEY-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCzVBO/HUhgU4cIRS2UE255r2uG
-EaVuPAxrANab5z7rv/hUm1t1TW9G6qaLvXraUS2c6m4PW+VVY8j/fViIy9XLhd2I
-dYsbuTNyV6gQVnA4tdMdnJdrvfzaXiIoPzP3u9Ll8LEQSW2iiludxwBlVz/VdCiA
-EYBMuYmrmSHsan5ObQIDAQAB
------END PUBLIC KEY-----";
+            if (chatIndex == -1) return;
+            if (text == null) return;
 
-            string privateKey = @"-----BEGIN RSA PRIVATE KEY-----
-MIICXQIBAAKBgQCzVBO/HUhgU4cIRS2UE255r2uGEaVuPAxrANab5z7rv/hUm1t1
-TW9G6qaLvXraUS2c6m4PW+VVY8j/fViIy9XLhd2IdYsbuTNyV6gQVnA4tdMdnJdr
-vfzaXiIoPzP3u9Ll8LEQSW2iiludxwBlVz/VdCiAEYBMuYmrmSHsan5ObQIDAQAB
-AoGBAIHSy1zfQSdjMO2ez0lU6/SyN0BfBAmS9VZ9y+AgACBB4PC3a/W28mk/tQST
-Tx5ACKqB2N3LpHI2BCxaPT8DeilfjaUibpOqXJ918+oXmOEpEBpEz2FzkzZWeUOo
-8bkDiuEE1RyzQEQExxCbiLQFCpX0NNIpccrTYJ3wRZfroojNAkEA4Pd9xxscmxQM
-s4aQgE+/paQWR//B2JQjhsxvYfLhrMUKgWMWpfm5EfhG3AlIE/N7iZADPLZ+2JMG
-2ljnE3VdzwJBAMwQ6DJpueg2Yj5+ufTVhFBIkJZXWGIZv5FWmzaycfJOafg/ToRB
-QWjU7Dr7buxQ4jgFI6eZcN8uM5pcer/ouwMCQDRCSb2O1r5PkgPCJp8n52UbEPH4
-v5cIEpiltNoUCciQnTghRImZ0RwTiKJkpZG85d22zomz+xNkVBs0u7kRcpECQAfH
-NTKGuSFSwVfkeK4OXWa5/Vjdp27F0Hl3tZ7WGmXD+2IM968u1ZFrXD27S7USOC0u
-dPd0b8rx9eGSWNNryYUCQQCWbiNhKEDQ1+yauWhZwamsc2Zl/Gde0eQYrWlmoZRE
-r4w8Xlt8XVBTNBf5ljALeVtXOs0LNuWqnmy1v7wMPvnN
------END RSA PRIVATE KEY-----";
+            Chat chat = this.chats[chatIndex];
 
-            string text = RSAHelper.Encrypt("Hello Rocky", publicKey);
+            this.SendMessage(text, null, 0, chat.id);
+            // Debug.Log(chat.name);
 
-            var data = RSAHelper.Decrypt(text.Trim(), privateKey);
-            Debug.Log(data);
+            // Contact contact = this.contacts[chatIndex];
 
+            // Debug.Log(contact.alias);
+        }
+
+        public void SendMessage(string content, string replyUuid, long contactId = 0, long chatId = 0, long amount = 0, long messagePrice = 0, bool boost = false)
+        {
+            string encrypted = this.encryptText(1, content);
+
+            Debug.Log(encrypted);
+
+            Dictionary<object, object> remote_text_map = Helpers.makeRemoteTextMap(content, contactId, chatId);
+
+            Dictionary<string, object> parameters = new Dictionary<string, object>();
+
+            parameters.Add("contact_id", contactId);
+
+            parameters.Add("chat_id", null);
+            if (chatId != 0)
+            {
+                parameters["chat_id"] = chatId;
+            }
+
+            parameters.Add("text", encrypted);
+
+            parameters.Add("amount", null);
+            if (amount != 0)
+            {
+                parameters["amount"] = chatId;
+            }
+
+            parameters.Add("reply_uuid", replyUuid);
+            parameters.Add("boost", boost);
+
+            if (messagePrice != 0) parameters.Add("message_price", messagePrice);
+
+            if (chatId == 0)
+            {
+                Debug.Log("no chat id");
+
+                Action<string, object, string, Action<string>> request = this.api.AddMethod("POST", this.api.url);
+                request(string.Format("/messages"), parameters, null, delegate (string text)
+                {
+                    Debug.Log(text);
+
+                    // Json_Contacts json = JsonUtility.FromJson<Json_Contacts>(text);
+
+                    // if (json.success)
+                    // {
+                    //     this.contacts = json.response.contacts;
+                    //     this.chats = json.response.chats;
+                    //     this.subscriptions = json.response.subscriptions;
+
+                    //     foreach (Contact contact in this.contacts)
+                    //     {
+                    //         Debug.Log(contact.alias);
+                    //     }
+                    // }
+                });
+            }
+            else
+            {
+
+            }
+        }
+
+        string encryptText(long contactId, string text)
+        {
+            Contact contact = this.contacts.FirstOrDefault(i => i.id == contactId);
+
+            if (contact == null) return string.Empty;
+
+            string encrypted = Helpers.encryptPublic(text, contact.public_key);
+            return encrypted;
         }
         #endregion
     }

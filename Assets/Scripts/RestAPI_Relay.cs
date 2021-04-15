@@ -172,6 +172,7 @@ namespace PlayEntertainment.Sphinx
                     break;
                 case UnityWebRequest.Result.Success:
                     Debug.Log("Received: " + webRequest.downloadHandler.text);
+                    callback(webRequest.downloadHandler.text);
                     break;
             }
         }
