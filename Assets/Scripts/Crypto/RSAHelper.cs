@@ -35,16 +35,22 @@ public class RSAHelper
         pemFileConent = pemFileConent.Replace("-----BEGIN PUBLIC KEY-----", "").Replace("-----END PUBLIC KEY-----", "").Replace("\n", "").Replace("\r", "");
         byte[] keyData = Convert.FromBase64String(pemFileConent);
         bool keySize1024 = (keyData.Length == 162);
-        bool keySize2048 = (keyData.Length == 294);
+        bool keySize2048 = (keyData.Length == 270 || keyData.Length == 294);
+
         if (!(keySize1024 || keySize2048))
         {
             throw new ArgumentException("pem file content is incorrect, Only support the key size is 1024 or 2048");
         }
-        byte[] pemModulus = (keySize1024 ? new byte[128] : new byte[256]);
-        var pemPublicExponent = new byte[3];
-        Array.Copy(keyData, (keySize1024 ? 29 : 33), pemModulus, 0, (keySize1024 ? 128 : 256));
-        Array.Copy(keyData, (keySize1024 ? 159 : 291), pemPublicExponent, 0, 3);
-        var para = new RSAParameters { Modulus = pemModulus, Exponent = pemPublicExponent };
+        byte[] modulusData = (keySize1024 ? new byte[128] : new byte[256]);
+        var exponentData = new byte[3];
+
+        //Array.Copy(keyData, (keySize1024 ? 29 : 33), modulusData, 0, (keySize1024 ? 128 : 256));
+        //Array.Copy(keyData, (keySize1024 ? 159 : 291), exponentData, 0, 3);
+
+        Array.Copy(keyData, keyData.Length - exponentData.Length, exponentData, 0, exponentData.Length);
+        Array.Copy(keyData, 9, modulusData, 0, modulusData.Length);
+
+        var para = new RSAParameters { Modulus = modulusData, Exponent = exponentData };
         return para;
     }
 

@@ -1,14 +1,14 @@
-using System.Diagnostics;
+using System.Web;
 //
 //  http://playentertainment.company
 //  
 
-
-using RNCryptor;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+
+using UnityEngine;
 
 namespace PlayEntertainment.Sphinx
 {
@@ -19,6 +19,10 @@ namespace PlayEntertainment.Sphinx
             T[] result = new T[length];
             Array.Copy(array, offset, result, 0, length);
             return result;
+        }
+        public static List<T> GetClone<T>(this List<T> source)
+        {
+            return source.GetRange(0, source.Count);
         }
     }
 
@@ -86,6 +90,63 @@ namespace PlayEntertainment.Sphinx
             return buffer;
         }
 
+        static public Dictionary<long, List<Msg>> orgMsgsFromExisting(Dictionary<long, List<Msg>> all, List<Msg> messages)
+        {
+            var buffer = all.ToDictionary(c => c.Key, c => c.Value.ToList());
+
+            foreach (Msg message in messages)
+            {
+                Helpers.Combine(ref buffer, message, message.chat_id);
+            }
+
+            return buffer;
+        }
+
+        static public void sortAllMsgs(ref Dictionary<long, List<Msg>> all)
+        {
+            var buffer = all.ToDictionary(c => c.Key, c => c.Value.ToList());
+            foreach (KeyValuePair<long, List<Msg>> entry in buffer)
+            {
+                all[entry.Key] = entry.Value.OrderBy(l => l.date).ToList();
+            }
+        }
+
+        static public void Combine(ref Dictionary<long, List<Msg>> combined, Msg message, long chatId)
+        {
+            if (combined.ContainsKey(chatId))
+            {
+                int index = combined[chatId].FindIndex(m => m.id == message.id);
+
+                if (index == -1)
+                {
+                    combined[chatId].Insert(0, Helpers.skinny(message));
+
+                    int MAX_MSGS_PER_CHAT = 100;
+
+                    if (combined[chatId].Count > MAX_MSGS_PER_CHAT)
+                    {
+                        combined[chatId].Remove(combined[chatId].Last());
+                    }
+                }
+                else
+                {
+                    combined[chatId][index] = Helpers.skinny(message);
+                }
+            }
+            else
+            {
+                combined[chatId] = new List<Msg>() {
+                    Helpers.skinny(message)
+                };
+            }
+        }
+
+        static public Msg skinny(Msg message)
+        {
+
+            return message;
+        }
+
         static public string decryptPrivate(string encrypted)
         {
             // int KEY_SIZE = 2048;
@@ -139,12 +200,145 @@ namespace PlayEntertainment.Sphinx
 
             return message;
         }
-
         static public string encryptPublic(string text, string publicKey)
         {
-            // Crypto.Encrypt(text, publicKey);
-            return null;
+            string encrypted = Crypto.Encrypt(text, publicKey);
+            return encrypted;
         }
+
+
+        // const termKeys = [{
+        //   key:'host',
+        //   func: buf=> buf.toString('ascii')
+        // },{
+        //   key:'muid',
+        //   func: buf=> urlBase64(buf)
+        // },{
+        //   key:'pubkey',
+        //   func: buf=> buf.toString('hex')
+        // },{
+        //   key:'ts',
+        //   func: buf=> parseInt('0x' + buf.toString('hex'))
+        // },{
+        //   key:'meta',
+        //   func: buf=> {
+        //     const ascii = buf.toString('ascii')
+        //     return ascii?deserializeMeta(ascii):{} // parse this
+        //   }
+        // },{
+        //   key:'sig',
+        //   func: buf=> urlBase64(buf)
+        // }]
+
+        // export function parseLDAT(ldat){
+        //   const a = ldat.split('.')
+        //   const o: {[k:string]:any} = {}
+        //   termKeys.forEach((t,i)=>{
+        //     if(a[i]) o[t.key] = t.func(Buffer.from(a[i], 'base64'))
+        //   })
+        //   return o
+        // }
+
+        public static string Parse(string text)
+        {
+            text = text.Replace('_', '/').Replace('-', '+');
+            switch (text.Length % 4)
+            {
+                case 2:
+                    text += "==";
+                    break;
+                case 3:
+                    text += "=";
+                    break;
+            }
+            return text;
+        }
+
+        static public LDAT parseLDAT(string text)
+        {
+            string[] keys = new string[] { "host", "muid", "pubkey", "ts", "meta", "sig" };
+
+            string[] words = text.Split('.');
+
+            LDAT ldat = new LDAT();
+
+            for (int i = 0; i < 6; i += 1)
+            {
+                string key = keys[i];
+
+                if (i == words.Length) return ldat;
+
+                string word = Helpers.Parse(words[i]);
+
+                if (key == "ts")
+                {
+                    // issue parsing the word
+                    continue;
+                }
+
+                if (word.Length == 0)
+                {
+                    continue;
+                }
+
+                byte[] bytes = Convert.FromBase64String(word);
+
+                switch (key)
+                {
+                    case "host":
+                        ldat.host = Encoding.UTF8.GetString(bytes);
+                        break;
+                    case "muid":
+                        ldat.muid = urlBase64(bytes);
+                        break;
+                    case "pubkey":
+                        ldat.pubkey = BitConverter.ToString(bytes).Replace("-", "");
+                        break;
+                    case "ts":
+                        string hex = "0x" + BitConverter.ToString(bytes).Replace("-", "");
+                        ldat.ts = Convert.ToInt16(hex);
+                        break;
+                    case "meta":
+                        string ascii = Encoding.UTF8.GetString(bytes);
+                        ldat.meta = Helpers.deserializeMeta(ascii);
+                        break;
+                    case "sig":
+                        ldat.sig = urlBase64(bytes);
+                        break;
+                }
+            }
+
+            return ldat;
+        }
+
+        static string urlBase64(byte[] bytes)
+        {
+            string temp = Convert.ToBase64String(bytes);
+            string output = temp.Replace("/", "_").Replace("+", "-");
+            return output;
+        }
+
+        public static Dictionary<string, string> ParseQueryString(string queryString)
+        {
+            var nvc = HttpUtility.ParseQueryString(queryString);
+            return nvc.AllKeys.ToDictionary(k => k, k => nvc[k]);
+        }
+
+        static LDAT_Meta deserializeMeta(string text)
+        {
+            if (text.Length <= 2)
+                return null;
+
+            Dictionary<string, string> meta = Helpers.ParseQueryString(text);
+
+            LDAT_Meta output = new LDAT_Meta();
+
+            output.amount = meta.ContainsKey("amt") ? long.Parse(meta["amt"]) : 0;
+            output.ttl = meta.ContainsKey("ttl") ? (output.ttl.Equals("undefined") ? 0 : 0) : 0;
+
+            return output;
+        }
+
         static public Dictionary<object, object> makeRemoteTextMap(string text, long contactId = 0, long chatId = 0, bool includeSelf = false)
         {
             Dictionary<object, object> idToKeyMap = new Dictionary<object, object>();

@@ -40,7 +40,8 @@ namespace PlayEntertainment.Sphinx
         public List<Contact> contacts;
         public List<Chat> chats;
         public List<Subscription> subscriptions;
-        public List<Msg> messages;
+
+        public Dictionary<long, List<Msg>> messages;
 
         public long lastFetched = 0;
 
@@ -58,6 +59,8 @@ namespace PlayEntertainment.Sphinx
             }
 
             DontDestroyOnLoad(this.gameObject);
+
+            // PlayerPrefs.DeleteAll();
         }
 
         public void ProcessCode(string code, Action<bool, Action<string>> callback)
@@ -106,7 +109,7 @@ namespace PlayEntertainment.Sphinx
 
         public void Launch()
         {
-            this.Restore();
+            this.Recover();
             this.GetBalance();
             this.GetContacts();
         }
@@ -131,7 +134,7 @@ namespace PlayEntertainment.Sphinx
             return key;
         }
 
-        public void Restore()
+        public void Recover()
         {
             string[] separatingStrings = { "::" };
             string[] words = this.restoreString.Split(separatingStrings, System.StringSplitOptions.RemoveEmptyEntries);
@@ -205,8 +208,6 @@ namespace PlayEntertainment.Sphinx
 
             string token = this.RandomString(20);
 
-            Debug.Log(token);
-
             return token;
         }
 
@@ -250,7 +251,7 @@ namespace PlayEntertainment.Sphinx
                         this.state = STATE.ONCE;
                     }
 
-                    Debug.Log(this.balance.balance);
+                    this.quantum.LogToConsole(string.Format("Balance: " + this.balance.balance));
                 }
             });
         }
@@ -277,75 +278,156 @@ namespace PlayEntertainment.Sphinx
             });
         }
 
-        [Command(".chats")]
+        [Command(".tribes")]
         public void GetChats()
         {
             foreach (Chat chat in this.chats)
             {
-                Debug.Log(chat.name);
+                Debug.Log(chat.id + " " + chat.uuid + " " + chat.name);
             }
         }
 
         // Messages
-        [Command(".messages")]
-        public void GetMessages()
+        [Command(".restore")]
+        public void Restore()
         {
             this.RestoreMessages();
         }
 
         void RestoreMessages()
         {
-            bool done = false;
             int offset = 0;
-            int limit = 20;
+            int limit = 200;
+            int MAX_MSGS_RESTORE = 5000;
 
             DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             string param_Date = dateTime.ToString("yyyy-MM-dd\\%20HH:mm:ss");
 
+            Dictionary<long, List<Msg>> all = new Dictionary<long, List<Msg>>();
             Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
-            request(string.Format("/msgs?limit={0}&offset={1}&date={2}", limit, offset, param_Date), null, null, delegate (string text)
-            {
-                done = true;
 
+            Action<string> lambda = null;
+
+            lambda = delegate (string text)
+            {
                 Json_Messages json = JsonUtility.FromJson<Json_Messages>(text);
 
                 if (json.success)
                 {
-                    this.messages = json.response.new_messages;
-
-                    if (this.messages.Count <= 0) return;
-
-                    while (!done)
+                    if (json.response.new_messages.Count > 0)
                     {
+                        List<Msg> decodedMessages = Helpers.decodeMessages(json.response.new_messages);
 
-                    }
+                        all = Helpers.orgMsgsFromExisting(all, decodedMessages);
 
-                    DateTime now = DateTime.Now;
-                    this.lastFetched = ((DateTimeOffset)now).ToUnixTimeSeconds();
-
-                    this.messages = Helpers.decodeMessages(this.messages);
-
-                    foreach (Msg message in this.messages)
-                    {
-                        if (message.message_content != null)
+                        if (json.response.new_messages.Count < 200)
                         {
-                            Debug.Log(message.message_content);
+                            this.FinishRestore(all);
+                            return;
                         }
                     }
+                    else
+                    {
+                        this.FinishRestore(all);
+                        return;
+                    }
+
+                    offset += 200;
+                    if (offset >= MAX_MSGS_RESTORE)
+                    {
+                        this.FinishRestore(all);
+                        return;
+                    }
+                    else
+                    {
+                        request(string.Format("/msgs?limit={0}&offset={1}&date={2}", limit, offset, param_Date), null, null, lambda);
+                    }
                 }
-            });
+
+                // this.FinishRestore(all);
+            };
+
+            request(string.Format("/msgs?limit={0}&offset={1}&date={2}", limit, offset, param_Date), null, null, lambda);
         }
 
-        [Command(".message")]
-        public void SendMessage(string text, int chatIndex = -1)
+        public void FinishRestore(Dictionary<long, List<Msg>> all)
         {
-            if (chatIndex == -1) return;
+            Debug.Log("restore_done");
+
+            Helpers.sortAllMsgs(ref all);
+
+            this.messages = all;
+
+            DateTime now = DateTime.Now;
+            this.lastFetched = ((DateTimeOffset)now).ToUnixTimeSeconds();
+
+            // Output
+            foreach (KeyValuePair<long, List<Msg>> entry in this.messages)
+            {
+                this.quantum.LogToConsole("chatId: " + entry.Key);
+
+                if (entry.Key != 3) continue;
+
+                foreach (Msg message in entry.Value)
+                {
+                    if (message.type == (int)MESSAGE_TYPE.attachment)
+                    {
+                        // Debug.Log(JsonUtility.ToJson(message).ToString());
+                        this.quantum.LogToConsole("id: " + message.id);
+                        this.quantum.LogToConsole(JsonUtility.ToJson(Helpers.parseLDAT(message.media_token)).ToString());
+                    }
+                }
+
+                this.quantum.LogToConsole("===");
+                this.quantum.LogToConsole("===");
+                this.quantum.LogToConsole("===");
+
+                Msg value = entry.Value.Last();
+
+                if (value.type == (int)MESSAGE_TYPE.attachment)
+                {
+                    LDAT ldat = Helpers.parseLDAT(value.media_token);
+                    this.quantum.LogToConsole(JsonUtility.ToJson(ldat).ToString());
+                }
+            }
+        }
+
+        [Command(".message.tribe")]
+        public void SendMessage_Tribe(string text, int chatId = -0)
+        {
+            if (chatId == 0) return;
             if (text == null) return;
 
-            Chat chat = this.chats[chatIndex];
+            // Chat chat = this.chats[chatIndex];
+
+            Chat chat = this.chats.FirstOrDefault(c => c.id == chatId);
+
+            if (chat == null) return;
 
             this.SendMessage(text, null, 0, chat.id);
-            // Debug.Log(chat.name);
+
+            Debug.Log(chat.name);
+
+            // Contact contact = this.contacts[chatIndex];
+
+            // Debug.Log(contact.alias);
+        }
+
+        [Command(".message.contact")]
+        public void SendMessage_Contact(string text, int chatId = -0)
+        {
+            if (chatId == 0) return;
+            if (text == null) return;
+
+            // Chat chat = this.chats[chatIndex];
+
+            Chat chat = this.chats.FirstOrDefault(c => c.id == chatId);
+
+            if (chat == null) return;
+
+            this.SendMessage(text, null, 0, chat.id);
+
+            Debug.Log(chat.name);
 
             // Contact contact = this.contacts[chatIndex];
 
@@ -355,8 +437,6 @@ namespace PlayEntertainment.Sphinx
         public void SendMessage(string content, string replyUuid, long contactId = 0, long chatId = 0, long amount = 0, long messagePrice = 0, bool boost = false)
         {
             string encrypted = this.encryptText(1, content);
-
-            Debug.Log(encrypted);
 
             Dictionary<object, object> remote_text_map = Helpers.makeRemoteTextMap(content, contactId, chatId);
 
@@ -375,7 +455,7 @@ namespace PlayEntertainment.Sphinx
             parameters.Add("amount", null);
             if (amount != 0)
             {
-                parameters["amount"] = chatId;
+                parameters["amount"] = amount;
             }
 
             parameters.Add("reply_uuid", replyUuid);
@@ -390,27 +470,39 @@ namespace PlayEntertainment.Sphinx
                 Action<string, object, string, Action<string>> request = this.api.AddMethod("POST", this.api.url);
                 request(string.Format("/messages"), parameters, null, delegate (string text)
                 {
-                    Debug.Log(text);
+                    Json_Message json = JsonUtility.FromJson<Json_Message>(text);
 
-                    // Json_Contacts json = JsonUtility.FromJson<Json_Contacts>(text);
-
-                    // if (json.success)
-                    // {
-                    //     this.contacts = json.response.contacts;
-                    //     this.chats = json.response.chats;
-                    //     this.subscriptions = json.response.subscriptions;
-
-                    //     foreach (Contact contact in this.contacts)
-                    //     {
-                    //         Debug.Log(contact.alias);
-                    //     }
-                    // }
+                    if (json.success)
+                    {
+                        Debug.Log("id: " + json.response.id);
+                    }
                 });
             }
             else
             {
+                int type = boost ? (int)MESSAGE_TYPE.boost : (int)MESSAGE_TYPE.message;
+                amount = boost && messagePrice != 0 && messagePrice < amount ? amount - messagePrice : amount;
 
+                // this.Insert(this.messages, null, chatId);
+
+                Action<string, object, string, Action<string>> request = this.api.AddMethod("POST", this.api.url);
+                request(string.Format("/messages"), parameters, null, delegate (string text)
+                {
+                    Json_Message json = JsonUtility.FromJson<Json_Message>(text);
+
+                    if (json.success)
+                    {
+                        Debug.Log("id: " + json.response.id);
+                    }
+                });
+
+                // Deduct balance
             }
+        }
+
+        void Insert(List<Msg> pool, Msg message, long chatId = 0)
+        {
+            // TBD
         }
 
         string encryptText(long contactId, string text)
@@ -419,7 +511,7 @@ namespace PlayEntertainment.Sphinx
 
             if (contact == null) return string.Empty;
 
-            string encrypted = Helpers.encryptPublic(text, contact.public_key);
+            string encrypted = Helpers.encryptPublic(text, contact.contact_key);
             return encrypted;
         }
         #endregion

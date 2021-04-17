@@ -158,6 +158,12 @@ namespace PlayEntertainment.Sphinx
             webRequest.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
             webRequest.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
             webRequest.SetRequestHeader("Content-Type", "application/json");
+
+            foreach (KeyValuePair<string, string> entry in headers)
+            {
+                webRequest.SetRequestHeader(entry.Key, entry.Value);
+            }
+
             yield return webRequest.SendWebRequest();
             Debug.Log("Status Code: " + webRequest.responseCode);
 
@@ -171,7 +177,6 @@ namespace PlayEntertainment.Sphinx
                     Debug.LogError("HTTP Error: " + webRequest.error);
                     break;
                 case UnityWebRequest.Result.Success:
-                    Debug.Log("Received: " + webRequest.downloadHandler.text);
                     callback(webRequest.downloadHandler.text);
                     break;
             }

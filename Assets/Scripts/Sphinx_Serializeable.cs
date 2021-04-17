@@ -52,6 +52,71 @@ namespace PlayEntertainment.Sphinx
     }
 
     [Serializable]
+    public class Json_Message
+    {
+        public bool success;
+        public Response_Message response;
+    }
+
+    [Serializable]
+    public class Response_Message : Msg
+    {
+    }
+
+    // {
+    //   "success": true,
+    //   "response": {
+    //     "seen": false,
+    //     "id": 225,
+    //     "chat_id": 2,
+    //     "uuid": "9ZWm3S4LHTS5eeLhYw4i4o",
+    //     "type": 0,
+    //     "sender": 1,
+    //     "amount": 0,
+    //     "date": "2021-04-15T15:23:11.000Z",
+    //     "message_content": "y4COJLfPKiYg1HZgMvguny/JTQGjoH2WmMFXtPJyOrtwlIyF+EgAWxH4s2JBhrwYEl+XguRZG9tDN9nx6KKrkkr5V6HuZXt5tNmVjFMg8azi1mJ5sMEVEytPjkeio/m6H6x0IciAOZqc6a6KH58LUuZBMrl8WZoz8O3ZXR7mtg9YeTylSMCKe6EKkleWhT9fTTRJ57tiPWvE8Gq6xk9fgLySdi78xEH/Rc++yIutzpUWHGafxk0H9n0LWPVR16SQzWD+RTe+GLT64pyWxbFU7mTYSippSi+ane4ZlOQnUU7ZD3Y+DusYZxPUo4+lVnWMA5m1eR7OhZfk/E68hUN35g==",
+    //     "status": 0,
+    //     "created_at": "2021-04-15T15:23:11.000Z",
+    //     "updated_at": "2021-04-15T15:23:11.842Z",
+    //     "network_type": 1,
+    //     "amount_msat": 0,
+    //     "status_map": null,
+    //     "chat": {
+    //       "id": 2,
+    //       "uuid": "YG9Vnx_MlTLsIyn0Rva_6AUEdVXdnCJ7WDoi-vP0Ylz48OHnJl0zb3sLU3yN6DJCyAxWxcQ8zFmbPb5jwYNDBflkMx7z",
+    //       "name": "Feed 2",
+    //       "photo_url": "",
+    //       "type": 2,
+    //       "status": 0,
+    //       "contact_ids": [
+    //         1,
+    //         3
+    //       ],
+    //       "is_muted": null,
+    //       "created_at": "2021-04-08T21:05:30.000Z",
+    //       "updated_at": "2021-04-15T15:19:27.312Z",
+    //       "deleted": 0,
+    //       "group_key": "MIIBCgKCAQEA4UzVGPrjZx0ajtcQO7WOgM+F014MbAmmFKw1BSLYhL7ZznbZbYGA/zehoZCSYXobCkm8mZVBfho1Q7UkU2n+8MAtSPS7Zg46DbnrvyuJbrww0f1XRHV5Qma5j/Ht9+rtlipzcImAOQTyygaEbytDOI2ByRXbjfVVSWx2rS/chQWhTqQgQl/wRKuQl7za4oLwU0juRVJ5mmZzx8GrGY2vk337X2IyvyhGYlvyxLILIMfx7B4EV0LeeHWwhytNT23GfmBUNw5BkpZKpzMlNQ00GhsfSIeb/whqDURaeLMpeKaejQsps8RSEMVjILNUA8cIZCrDvPNisTpXay7JivqvsQIDAQAB",
+    //       "host": "tribes-staging.n2n2.chat",
+    //       "price_to_join": 0,
+    //       "price_per_message": null,
+    //       "escrow_amount": null,
+    //       "escrow_millis": null,
+    //       "unlisted": false,
+    //       "private": false,
+    //       "owner_pubkey": "02c47129168a1771d1e645eb9204098920cadaee6e16f9455008272d7bbd573dd9",
+    //       "seen": true,
+    //       "app_url": null,
+    //       "feed_url": null,
+    //       "meta": null,
+    //       "my_photo_url": null,
+    //       "my_alias": null
+    //     },
+    //     "contact": null
+    //   }
+    // }
+
+    [Serializable]
     public class Chat
     {
         public long id;
@@ -178,5 +243,24 @@ namespace PlayEntertainment.Sphinx
         public long amount;
         public string date;
         public string sender_alias;
+    }
+
+    [Serializable]
+    public class LDAT_Meta
+    {
+        public long amount;
+        public int ttl;
+    }
+
+    [Serializable]
+    public class LDAT
+    {
+        public string host;
+        public string muid;
+        public string pubkey;
+        public int ts;
+        public LDAT_Meta meta;
+        public string sig;
+
     }
 }
