@@ -8,6 +8,32 @@ using System.Collections.Generic;
 namespace PlayEntertainment.Sphinx
 {
     [Serializable]
+    public class Json_Ask
+    {
+        public string id;
+        public string challenge;
+    }
+
+    [Serializable]
+    public class Json_Signer
+    {
+        public bool success;
+        public Signature response;
+    }
+
+    [Serializable]
+    public class Signature
+    {
+        public string sig;
+    }
+
+    [Serializable]
+    public class Json_Verify
+    {
+        public string token;
+    }
+
+    [Serializable]
     public class Json_Balance
     {
         public bool success;
@@ -261,6 +287,12 @@ namespace PlayEntertainment.Sphinx
         public int ts;
         public LDAT_Meta meta;
         public string sig;
+    }
 
+    [Serializable]
+    public class Server
+    {
+        public string host;
+        public string token;
     }
 }

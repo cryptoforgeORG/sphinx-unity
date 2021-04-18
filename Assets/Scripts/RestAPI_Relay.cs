@@ -7,7 +7,9 @@ using MiniJSON;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Web;
 
 using UnityEngine;
 using UnityEngine.Networking;
@@ -63,7 +65,8 @@ namespace PlayEntertainment.Sphinx
 
                         if (encoding == "application/x-www-form-urlencoded")
                         {
-                            opts.Add("body", this.makeSearchParams(data));
+                            opts.Add("body", data);
+                            // opts.Add("body", this.makeSearchParams(data));
                         }
                         else
                         {
@@ -111,6 +114,7 @@ namespace PlayEntertainment.Sphinx
         string makeSearchParams(object data)
         {
 
+            Dictionary<string, object> parameters = data as Dictionary<string, object>;
             // function makeSearchParams(params) {
             //     return Object.keys(params)
             //         .map(key => {
@@ -118,8 +122,7 @@ namespace PlayEntertainment.Sphinx
             //         })
             //         .join('&')
             //     }
-
-            return string.Empty;
+            return HttpUtility.UrlEncode(string.Join("&", parameters.Select(kvp => string.Format("{0}={1}", kvp.Key, kvp.Value))));
         }
 
         IEnumerator GetRequest(string uri, Dictionary<string, string> headers, Action<string> callback)
@@ -154,10 +157,27 @@ namespace PlayEntertainment.Sphinx
             string bodyJsonString = opts["body"].ToString();
 
             var webRequest = new UnityWebRequest(uri, "POST");
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(bodyJsonString);
-            webRequest.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
-            webRequest.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-            webRequest.SetRequestHeader("Content-Type", "application/json");
+
+            if (headers["Content-Type"] == "application/json")
+            {
+                byte[] bodyRaw = Encoding.UTF8.GetBytes(bodyJsonString);
+                webRequest.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
+                webRequest.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+                // webRequest.SetRequestHeader("Content-Type", "application/json"); // Pre 'Verify Signature Issue' Line
+            }
+            else
+            {
+                WWWForm form = new WWWForm();
+
+                Dictionary<string, object> body = opts["body"] as Dictionary<string, object>;
+
+                foreach (KeyValuePair<string, object> entry in body)
+                {
+                    form.AddField(entry.Key, entry.Value.ToString());
+                }
+
+                webRequest = UnityWebRequest.Post(uri, form);
+            }
 
             foreach (KeyValuePair<string, string> entry in headers)
             {

@@ -1,3 +1,4 @@
+using System.Net.Mail;
 //
 //  http://playentertainment.company
 //  
@@ -41,12 +42,16 @@ namespace PlayEntertainment.Sphinx
         public List<Chat> chats;
         public List<Subscription> subscriptions;
 
+        public Contact me;
+
         public Dictionary<long, List<Msg>> messages;
 
         public long lastFetched = 0;
 
-        public API api;
+        public API api_Relay;
+        public API api_Memes;
 
+        public Retina retina;
         void Awake()
         {
             if (Instance == null)
@@ -112,6 +117,60 @@ namespace PlayEntertainment.Sphinx
             this.Recover();
             this.GetBalance();
             this.GetContacts();
+
+            this.Authenticate();
+
+            this.Restore();
+        }
+
+        public void Authenticate()
+        {
+            // Authenticate meme server
+            Server server = new Server();
+
+            server.host = "memes-staging.n2n2.chat";
+            server.token = "";
+
+
+            string publicKey = me.public_key;
+
+            this.api_Memes = new API(string.Format("https://{0}", server.host), string.Empty, string.Empty, this, null);
+
+            Action<string, object, string, Action<string>> request_Signer = this.api_Relay.AddMethod("GET", this.api_Relay.url);
+
+            Action<string, object, string, Action<string>> request_Verify = this.api_Memes.AddMethod("POST", this.api_Memes.url);
+
+            Action<string, object, string, Action<string>> request = this.api_Memes.AddMethod("GET", this.api_Memes.url);
+
+            request(string.Format("/ask"), null, null, delegate (string text)
+                {
+                    Json_Ask json = JsonUtility.FromJson<Json_Ask>(text);
+                    string challenge = json.challenge;
+                    string id = json.id;
+
+                    Action<string> lambda = delegate (string text)
+                    {
+                        Json_Signer json = JsonUtility.FromJson<Json_Signer>(text);
+
+                        if (json.success)
+                        {
+                            Dictionary<string, object> data = new Dictionary<string, object>();
+
+                            data.Add("id", id);
+                            data.Add("sig", json.response.sig);
+                            data.Add("pubkey", this.me.public_key);
+
+                            request_Verify(string.Format("/verify"), data, "application/x-www-form-urlencoded", delegate (string text)
+                            {
+                                Json_Verify json = JsonUtility.FromJson<Json_Verify>(text);
+                                Debug.Log(json.token);
+                            });
+                        }
+                    };
+
+                    request_Signer(string.Format("/signer/{0}", challenge), null, null, lambda);
+                });
+            //
         }
 
         public string GetPrivateKey()
@@ -143,7 +202,7 @@ namespace PlayEntertainment.Sphinx
             string ip = words[2];
             string token = words[3];
 
-            this.api = new API(ip, "x-user-token", token, this, delegate ()
+            this.api_Relay = new API(ip, "x-user-token", token, this, delegate ()
             {
 
             });
@@ -165,8 +224,6 @@ namespace PlayEntertainment.Sphinx
             byte[] decodedBytes = Convert.FromBase64String(this.code_Invite);
             string decodedText = Encoding.UTF8.GetString(decodedBytes);
 
-            Debug.Log(decodedText);
-
             this.SignupWithIP(decodedText);
         }
         public void SignupWithIP(string code)
@@ -177,15 +234,14 @@ namespace PlayEntertainment.Sphinx
             string ip = words[1];
             string password = words[2];
 
-            Debug.Log(ip + " " + password);
-            this.api = new API(ip, string.Empty, string.Empty, this, delegate ()
+            this.api_Relay = new API(ip, string.Empty, string.Empty, this, delegate ()
             {
-                Debug.Log("A");
+
             });
 
             string token = this.GenerateToken(password);
 
-            Action<string, object, string, Action<object>> request = this.api.AddMethod("POST", this.api.url);
+            Action<string, object, string, Action<object>> request = this.api_Relay.AddMethod("POST", this.api_Relay.url);
 
             Dictionary<string, object> data = new Dictionary<string, object>();
 
@@ -199,9 +255,7 @@ namespace PlayEntertainment.Sphinx
 
         public string GenerateToken(string password)
         {
-            Debug.Log("GenerateToken");
-
-            if (this.api == null)
+            if (this.api_Relay == null)
             {
                 Debug.LogError("Need Api");
             }
@@ -235,7 +289,7 @@ namespace PlayEntertainment.Sphinx
         [Command(".balance")]
         public void GetBalance()
         {
-            Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
+            Action<string, object, string, Action<string>> request = this.api_Relay.AddMethod("GET", this.api_Relay.url);
             request(string.Format("/balance"), null, null, delegate (string text)
             {
                 Json_Balance json = JsonUtility.FromJson<Json_Balance>(text);
@@ -259,7 +313,7 @@ namespace PlayEntertainment.Sphinx
         [Command(".contacts")]
         public void GetContacts()
         {
-            Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
+            Action<string, object, string, Action<string>> request = this.api_Relay.AddMethod("GET", this.api_Relay.url);
             request(string.Format("/contacts"), null, null, delegate (string text)
             {
                 Json_Contacts json = JsonUtility.FromJson<Json_Contacts>(text);
@@ -270,10 +324,8 @@ namespace PlayEntertainment.Sphinx
                     this.chats = json.response.chats;
                     this.subscriptions = json.response.subscriptions;
 
-                    // foreach (Contact contact in this.contacts)
-                    // {
-                    //     Debug.Log(contact.alias);
-                    // }
+
+                    this.me = this.contacts.FirstOrDefault(c => c.id == 1);
                 }
             });
         }
@@ -304,7 +356,7 @@ namespace PlayEntertainment.Sphinx
             string param_Date = dateTime.ToString("yyyy-MM-dd\\%20HH:mm:ss");
 
             Dictionary<long, List<Msg>> all = new Dictionary<long, List<Msg>>();
-            Action<string, object, string, Action<string>> request = this.api.AddMethod("GET", this.api.url);
+            Action<string, object, string, Action<string>> request = this.api_Relay.AddMethod("GET", this.api_Relay.url);
 
             Action<string> lambda = null;
 
@@ -361,6 +413,8 @@ namespace PlayEntertainment.Sphinx
             DateTime now = DateTime.Now;
             this.lastFetched = ((DateTimeOffset)now).ToUnixTimeSeconds();
 
+            List<Msg> attachments = new List<Msg>();
+
             // Output
             foreach (KeyValuePair<long, List<Msg>> entry in this.messages)
             {
@@ -375,6 +429,8 @@ namespace PlayEntertainment.Sphinx
                         // Debug.Log(JsonUtility.ToJson(message).ToString());
                         this.quantum.LogToConsole("id: " + message.id);
                         this.quantum.LogToConsole(JsonUtility.ToJson(Helpers.parseLDAT(message.media_token)).ToString());
+
+                        attachments.Add(message);
                     }
                 }
 
@@ -389,6 +445,10 @@ namespace PlayEntertainment.Sphinx
                     LDAT ldat = Helpers.parseLDAT(value.media_token);
                     this.quantum.LogToConsole(JsonUtility.ToJson(ldat).ToString());
                 }
+
+                this.quantum.Deactivate();
+                this.retina.Show();
+                this.retina.AddToFeed(attachments);
             }
         }
 
@@ -467,7 +527,7 @@ namespace PlayEntertainment.Sphinx
             {
                 Debug.Log("no chat id");
 
-                Action<string, object, string, Action<string>> request = this.api.AddMethod("POST", this.api.url);
+                Action<string, object, string, Action<string>> request = this.api_Relay.AddMethod("POST", this.api_Relay.url);
                 request(string.Format("/messages"), parameters, null, delegate (string text)
                 {
                     Json_Message json = JsonUtility.FromJson<Json_Message>(text);
@@ -485,7 +545,7 @@ namespace PlayEntertainment.Sphinx
 
                 // this.Insert(this.messages, null, chatId);
 
-                Action<string, object, string, Action<string>> request = this.api.AddMethod("POST", this.api.url);
+                Action<string, object, string, Action<string>> request = this.api_Relay.AddMethod("POST", this.api_Relay.url);
                 request(string.Format("/messages"), parameters, null, delegate (string text)
                 {
                     Json_Message json = JsonUtility.FromJson<Json_Message>(text);

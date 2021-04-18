@@ -12,18 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a59acf1affd56c94fa937563dd75c947, type: 3}
   m_Name: Default Key Config
   m_EditorClassIdentifier: 
-  HideConsoleKey:
-    Key: 0
-    Ctrl: 0
-    Alt: 0
-    Shift: 0
+  SubmitCommandKey: 13
   ShowConsoleKey:
     Key: 0
     Ctrl: 0
     Alt: 0
     Shift: 0
+  HideConsoleKey:
+    Key: 0
+    Ctrl: 0
+    Alt: 0
+    Shift: 0
   ToggleConsoleVisibilityKey:
-    Key: 27
+    Key: 96
     Ctrl: 0
     Alt: 0
     Shift: 0
@@ -39,4 +40,8 @@ MonoBehaviour:
     Shift: 1
   NextCommandKey: 273
   PreviousCommandKey: 274
-  SubmitCommandKey: 13
+  CancelActionsKey:
+    Key: 99
+    Ctrl: 1
+    Alt: 0
+    Shift: 0
