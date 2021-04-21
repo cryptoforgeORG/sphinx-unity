@@ -106,8 +106,6 @@ namespace RNCryptor
                     break;
             }
 
-            UnityEngine.Debug.Log(this.hmac_algorithm);
-
             List<byte> hmac = new List<byte>();
             hmac.AddRange(hmacAlgo.ComputeHash(hmacMessage.ToArray()));
 

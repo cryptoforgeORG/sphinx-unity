@@ -309,7 +309,7 @@ namespace PlayEntertainment.Sphinx
             return ldat;
         }
 
-        static string urlBase64(byte[] bytes)
+        public static string urlBase64(byte[] bytes)
         {
             string temp = Convert.ToBase64String(bytes);
             string output = temp.Replace("/", "_").Replace("+", "-");

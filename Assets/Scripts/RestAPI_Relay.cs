@@ -185,7 +185,6 @@ namespace PlayEntertainment.Sphinx
             }
 
             yield return webRequest.SendWebRequest();
-            Debug.Log("Status Code: " + webRequest.responseCode);
 
             switch (webRequest.result)
             {

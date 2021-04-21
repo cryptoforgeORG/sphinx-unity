@@ -2057,7 +2057,39 @@ MonoBehaviour:
   contacts: []
   chats: []
   subscriptions: []
+  me:
+    id: 0
+    public_key: 
+    node_alias: 
+    alias: 
+    photo_url: 
+    private_photo: 
+    is_owner: 0
+    deleted: 0
+    auth_token: 
+    remote_id: 0
+    status: 0
+    contact_key: 
+    device_id: 
+    created_at: 
+    updated_at: 
+    from_group: 0
+    notification_sound: 
+    last_active: 
+    tip_amount: 0
+    invite:
+      id: 0
+      invite_string: 
+      welcome_message: 
+      contact_id: 0
+      status: 0
+      price: 0
+      created_at: 
+      updated_at: 
   lastFetched: 0
+  server_Meme:
+    host: 
+    token: 
   retina: {fileID: 1771064192621556789}
 --- !u!4 &677302219
 Transform:
@@ -6123,7 +6155,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 1
+  m_PresetInfoIsWorld: 0
 --- !u!223 &1868450982
 Canvas:
   m_ObjectHideFlags: 0
@@ -6158,7 +6190,7 @@ RectTransform:
   m_Children:
   - {fileID: 1042772462}
   m_Father: {fileID: 1771064192607644888}
-  m_RootOrder: 2
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -6368,7 +6400,7 @@ RectTransform:
   m_GameObject: {fileID: 1898274646}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1057624426}
   - {fileID: 1502347326}
@@ -6385,13 +6417,13 @@ RectTransform:
   - {fileID: 1509367035}
   - {fileID: 722705706}
   m_Father: {fileID: 1771064192607644888}
-  m_RootOrder: 3
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 750, y: 250}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0, y: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 1920, y: 1080}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1898274651
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7118,8 +7150,8 @@ RectTransform:
   m_Children:
   - {fileID: 1771064192607640484}
   - {fileID: 1212469663}
-  - {fileID: 1868450983}
   - {fileID: 1898274650}
+  - {fileID: 1868450983}
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

@@ -28,6 +28,13 @@ namespace PlayEntertainment.Sphinx
         {
             this.button_Go.onClick.AddListener(this.ProcessCode);
 
+            // // Clear PlayerPrefs
+            // if (true)
+            // {
+            //     PlayerPrefs.DeleteAll();
+
+            // }
+
             if (PlayerPrefs.HasKey("invite_code"))
             {
                 this.inputField_Code.text = PlayerPrefs.GetString("invite_code");
@@ -55,7 +62,7 @@ namespace PlayEntertainment.Sphinx
             }
             else
             {
-                Debug.Log("recovery_code not set");
+                Debug.Log("restore_string not set");
             }
         }
 

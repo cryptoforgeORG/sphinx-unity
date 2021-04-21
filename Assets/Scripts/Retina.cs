@@ -36,8 +36,11 @@ public class Retina : MonoBehaviour
         this.canvas_Feed.gameObject.SetActive(true);
     }
 
-    public void AddToFeed(List<Msg> messages)
+    public void Project(long chatId, long contactId, List<Msg> messages)
     {
+        this.canvas_Feed.contactId = contactId;
+        this.canvas_Feed.chatId = chatId;
+
         foreach (Msg message in messages)
         {
             this.canvas_Feed.AddItem(message);

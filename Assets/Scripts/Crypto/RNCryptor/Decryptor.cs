@@ -40,6 +40,18 @@ namespace RNCryptor
             return plaintextBytes;
         }
 
+        public string DecryptFileAndSave(string filepath, string password, string extension)
+        {
+            byte[] bytes = File.ReadAllBytes(filepath);
+
+            byte[] decrypted = this.Decrypt(bytes, password);
+
+            filepath = string.Format("{0}_decrypted", filepath);
+            File.WriteAllBytes(filepath, decrypted);
+
+            return filepath;
+        }
+
         private byte[] decryptAesCbcPkcs7(byte[] encrypted, byte[] key, byte[] iv)
         {
             var aes = Aes.Create();

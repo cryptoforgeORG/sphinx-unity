@@ -65,6 +65,34 @@ namespace PlayEntertainment.Sphinx
     }
 
     [Serializable]
+    public class Json_Purchase
+    {
+        public bool success;
+        public Response_Purchase response;
+    }
+
+    [Serializable]
+    public class Response_Purchase
+    {
+        public bool seen;
+        public long id;
+        public string uuid;
+        public long sender;
+        public int type;
+        public long amount;
+        public string media_token;
+        public string date;
+        public string created_at;
+        public string updated_at;
+        public int network_type;
+        public long amount_msat;
+
+        // public string status_map;
+
+        public Chat chat;
+        public Contact contact;
+    }
+    [Serializable]
     public class Json_Messages
     {
         public bool success;

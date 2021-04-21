@@ -549,6 +549,10 @@ MonoBehaviour:
         price: 0
         created_at: 
         updated_at: 
+  server:
+    host: 
+    token: 
+  button_Pay: {fileID: 7607738876214369899}
 --- !u!114 &4404817352812271845
 MonoBehaviour:
   m_ObjectHideFlags: 0

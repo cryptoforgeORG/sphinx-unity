@@ -51,6 +51,8 @@ namespace PlayEntertainment.Sphinx
         public API api_Relay;
         public API api_Memes;
 
+        public Server server_Meme;
+
         public Retina retina;
         void Awake()
         {
@@ -118,23 +120,24 @@ namespace PlayEntertainment.Sphinx
             this.GetBalance();
             this.GetContacts();
 
-            this.Authenticate();
-
-            this.Restore();
+            this.Authenticate(delegate ()
+            {
+                this.Restore();
+            });
         }
 
-        public void Authenticate()
+        public void Authenticate(Action callback)
         {
             // Authenticate meme server
-            Server server = new Server();
+            this.server_Meme = new Server();
 
-            server.host = "memes-staging.n2n2.chat";
-            server.token = "";
+            this.server_Meme.host = "memes-staging.n2n2.chat";
+            this.server_Meme.token = "";
 
 
             string publicKey = me.public_key;
 
-            this.api_Memes = new API(string.Format("https://{0}", server.host), string.Empty, string.Empty, this, null);
+            this.api_Memes = new API(string.Format("https://{0}", this.server_Meme.host), string.Empty, string.Empty, this, null);
 
             Action<string, object, string, Action<string>> request_Signer = this.api_Relay.AddMethod("GET", this.api_Relay.url);
 
@@ -163,7 +166,8 @@ namespace PlayEntertainment.Sphinx
                             request_Verify(string.Format("/verify"), data, "application/x-www-form-urlencoded", delegate (string text)
                             {
                                 Json_Verify json = JsonUtility.FromJson<Json_Verify>(text);
-                                Debug.Log(json.token);
+                                this.server_Meme.token = json.token;
+                                callback();
                             });
                         }
                     };
@@ -171,6 +175,29 @@ namespace PlayEntertainment.Sphinx
                     request_Signer(string.Format("/signer/{0}", challenge), null, null, lambda);
                 });
             //
+        }
+
+        public void PurchaseMedia(long contactId, long amount, long chatId, string mediaToken, Action callback)
+        {
+            Dictionary<string, object> parameters = new Dictionary<string, object>();
+            parameters.Add("contact_id", contactId);
+            parameters.Add("chat_id", chatId);
+            parameters.Add("amount", amount);
+            parameters.Add("media_token", mediaToken);
+
+            Action<string, object, string, Action<string>> request = this.api_Relay.AddMethod("POST", this.api_Relay.url);
+            request(string.Format("/purchase"), parameters, null, delegate (string text)
+            {
+                Json_Purchase json = JsonUtility.FromJson<Json_Purchase>(text);
+
+                if (json.success)
+                {
+
+                    Debug.Log(text);
+
+                    callback();
+                }
+            });
         }
 
         public string GetPrivateKey()
@@ -414,41 +441,51 @@ namespace PlayEntertainment.Sphinx
             this.lastFetched = ((DateTimeOffset)now).ToUnixTimeSeconds();
 
             List<Msg> attachments = new List<Msg>();
+            List<Msg> accepts = new List<Msg>();
 
             // Output
             foreach (KeyValuePair<long, List<Msg>> entry in this.messages)
             {
                 this.quantum.LogToConsole("chatId: " + entry.Key);
 
-                if (entry.Key != 3) continue;
+                if (entry.Key != 1) continue;
 
                 foreach (Msg message in entry.Value)
                 {
                     if (message.type == (int)MESSAGE_TYPE.attachment)
                     {
-                        // Debug.Log(JsonUtility.ToJson(message).ToString());
-                        this.quantum.LogToConsole("id: " + message.id);
-                        this.quantum.LogToConsole(JsonUtility.ToJson(Helpers.parseLDAT(message.media_token)).ToString());
-
                         attachments.Add(message);
+                    }
+
+                    if (message.type == (int)MESSAGE_TYPE.purchase_accept)
+                    {
+                        accepts.Add(message);
                     }
                 }
 
-                this.quantum.LogToConsole("===");
-                this.quantum.LogToConsole("===");
-                this.quantum.LogToConsole("===");
-
-                Msg value = entry.Value.Last();
-
-                if (value.type == (int)MESSAGE_TYPE.attachment)
+                for (int i = 0; i < attachments.Count; i += 1)
                 {
-                    LDAT ldat = Helpers.parseLDAT(value.media_token);
-                    this.quantum.LogToConsole(JsonUtility.ToJson(ldat).ToString());
+                    Msg message = attachments[i];
+
+                    LDAT ldat = Helpers.parseLDAT(message.media_token);
+
+                    if (ldat.muid != "" && ldat.meta != null && ldat.meta.amount != 0)
+                    {
+                        string start = Helpers.urlBase64(Encoding.ASCII.GetBytes(ldat.host));
+                        Msg accepted = accepts.FirstOrDefault(m => (m.type == (int)MESSAGE_TYPE.purchase_accept && m.media_key.StartsWith(start) || (m.type == (int)MESSAGE_TYPE.purchase_accept && m.original_muid == ldat.muid)));
+
+                        if (accepted != null)
+                        {
+                            attachments[i].media_token = accepted.media_token;
+                            attachments[i].media_key = accepted.media_key;
+                        }
+                    }
                 }
 
                 this.quantum.Deactivate();
                 this.retina.Show();
-                this.retina.AddToFeed(attachments);
+                // this.retina.Project(1, 0, new List<Msg> { attachments.Last() });
+                this.retina.Project(1, 0, attachments);
             }
         }
 
